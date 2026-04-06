@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>My Lessons</title>
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --text: #1a2332;
+    --muted: #6b7a8d;
+    --blue: #1979FF;
+    --green: #00b242;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --border: #e2e8f0;
+    --mono: ui-monospace, 'Cascadia Code', Consolas, 'Courier New', monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding: 12px;
+    font-size: 13px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-left svg { height: 28px; width: auto; }
+
+  .header-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--blue);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .timestamp {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .btn-run {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn-run:active { opacity: .7; }
+  .btn-run:disabled { opacity: .5; cursor: not-allowed; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+
+  .card-full { grid-column: 1 / -1; }
+
+  .card-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  /* Client info */
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { color: var(--muted); }
+  .info-val { font-family: var(--mono); font-size: 11px; text-align: right; max-width: 60%; word-break: break-all; }
+
+  /* Status dot */
+  .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+    background: var(--border);
+  }
+  .dot.ok { background: var(--green); }
+  .dot.fail { background: var(--red); }
+  .dot.warn { background: var(--yellow); }
+  .dot.loading {
+    background: var(--blue);
+    animation: pulse .8s infinite alternate;
+  }
+  @keyframes pulse { to { opacity: .3; } }
+
+  /* Server check rows */
+  .srv-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .srv-row:last-child { border-bottom: none; }
+  .srv-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+  .srv-status { font-family: var(--mono); font-size: 11px; margin-left: 6px; white-space: nowrap; }
+
+  /* Resource table */
+  .res-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+  .res-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 10px;
+    padding: 2px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .res-table td {
+    padding: 3px 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    border-bottom: 1px solid var(--border);
+  }
+  .res-table tr:last-child td { border-bottom: none; }
+
+  /* Timing bar */
+  .timing-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 2px;
+    width: 100%;
+    background: var(--border);
+  }
+  .timing-bar > span {
+    display: block;
+    height: 100%;
+    min-width: 1px;
+  }
+  .t-dns { background: #8b5cf6; }
+  .t-tcp { background: #3b82f6; }
+  .t-tls { background: #06b6d4; }
+  .t-ttfb { background: #f59e0b; }
+  .t-dl { background: #22c55e; }
+
+  .timing-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 9px;
+    color: var(--muted);
+  }
+  .timing-legend span::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 2px;
+    margin-right: 2px;
+    vertical-align: middle;
+  }
+  .tl-dns::before { background: #8b5cf6; }
+  .tl-tcp::before { background: #3b82f6; }
+  .tl-tls::before { background: #06b6d4; }
+  .tl-ttfb::before { background: #f59e0b; }
+  .tl-dl::before { background: #22c55e; }
+
+  /* WS */
+  .ws-result { font-family: var(--mono); font-size: 11px; line-height: 1.6; }
+
+  /* Stability */
+  .stab-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 12px;
+  }
+  .stab-bar-wrap {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .stab-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .3s;
+  }
+  .stab-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    min-width: 55px;
+    text-align: right;
+  }
+
+  /* SW */
+  .sw-info { font-size: 12px; line-height: 1.6; }
+  .sw-info code { font-family: var(--mono); font-size: 11px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+
+  /* Storage */
+  .storage-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 2px 0;
+  }
+
+  #statusBanner {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--blue);
+    color: var(--blue);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    cursor: default;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <svg width="139" height="39" viewBox="0 0 139 39" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M57.45 25V17.54L54.54 23.1H53.3L50.39 17.54V25H48.18V13.64H50.55L53.91 20.1L57.3 13.64H59.65V25H57.44H57.45ZM62 26.63C62.19 26.67 62.37 26.71 62.53 26.74C62.7 26.77 62.84 26.79 62.96 26.79C63.16 26.79 63.33 26.74 63.46 26.63C63.59 26.53 63.73 26.35 63.86 26.09C63.99 25.83 64.12 25.47 64.26 25L60.95 16.62H63.17L65.43 22.81L67.41 16.62H69.46L65.94 26.67C65.81 27.04 65.61 27.38 65.35 27.67C65.09 27.98 64.77 28.22 64.37 28.39C63.99 28.57 63.56 28.66 63.07 28.66C62.9 28.66 62.73 28.64 62.56 28.61C62.39 28.59 62.2 28.55 62 28.48V26.62V26.63Z" fill="#1979FF"/><path d="M74.04 13.32H76.18V22.31C76.18 22.7 76.24 22.96 76.37 23.1C76.5 23.23 76.67 23.29 76.9 23.29C77.07 23.29 77.25 23.27 77.43 23.23C77.61 23.18 77.77 23.13 77.91 23.07L78.2 24.7C77.91 24.84 77.57 24.95 77.19 25.02C76.81 25.1 76.46 25.13 76.15 25.13C75.48 25.13 74.95 24.95 74.58 24.6C74.22 24.24 74.04 23.73 74.04 23.06V13.32ZM83.02 25.16C82.35 25.16 81.74 25.05 81.2 24.82C80.65 24.59 80.19 24.27 79.8 23.88C79.42 23.47 79.12 23.01 78.91 22.5C78.7 21.98 78.6 21.43 78.6 20.85C78.6 20.05 78.78 19.32 79.13 18.66C79.49 18 80 17.47 80.67 17.08C81.34 16.67 82.13 16.47 83.04 16.47C83.96 16.47 84.74 16.67 85.39 17.08C86.04 17.47 86.54 18 86.88 18.66C87.23 19.31 87.41 20.01 87.41 20.75C87.41 20.88 87.41 21.01 87.39 21.15C87.38 21.28 87.37 21.39 87.36 21.47H80.88C80.92 21.9 81.05 22.27 81.25 22.59C81.46 22.91 81.73 23.16 82.05 23.33C82.38 23.49 82.73 23.57 83.11 23.57C83.54 23.57 83.94 23.47 84.31 23.27C84.69 23.05 84.95 22.78 85.09 22.43L86.93 22.94C86.73 23.37 86.44 23.75 86.05 24.08C85.68 24.41 85.24 24.67 84.72 24.86C84.21 25.05 83.64 25.14 83.02 25.14V25.16ZM80.83 20.14H85.21C85.17 19.71 85.04 19.34 84.84 19.04C84.65 18.72 84.39 18.47 84.07 18.3C83.75 18.12 83.39 18.03 83 18.03C82.61 18.03 82.26 18.12 81.94 18.3C81.63 18.47 81.38 18.72 81.17 19.04C80.98 19.35 80.86 19.72 80.82 20.14H80.83ZM91.8 25.16C91.08 25.16 90.4 25.04 89.75 24.81C89.1 24.57 88.54 24.23 88.07 23.77L88.84 22.38C89.34 22.78 89.83 23.08 90.31 23.28C90.8 23.47 91.27 23.57 91.72 23.57C92.14 23.57 92.47 23.5 92.72 23.35C92.97 23.2 93.1 22.98 93.1 22.68C93.1 22.48 93.03 22.32 92.89 22.22C92.75 22.1 92.55 22 92.28 21.92C92.02 21.83 91.71 21.74 91.33 21.63C90.71 21.43 90.19 21.23 89.78 21.04C89.36 20.85 89.05 20.61 88.83 20.32C88.63 20.02 88.53 19.64 88.53 19.18C88.53 18.63 88.67 18.15 88.94 17.76C89.23 17.35 89.62 17.04 90.12 16.81C90.63 16.59 91.23 16.47 91.91 16.47C92.51 16.47 93.07 16.57 93.61 16.76C94.14 16.94 94.63 17.24 95.07 17.66L94.21 19.02C93.78 18.69 93.37 18.45 92.99 18.3C92.6 18.14 92.21 18.06 91.82 18.06C91.59 18.06 91.38 18.09 91.18 18.14C90.99 18.19 90.83 18.28 90.7 18.41C90.59 18.53 90.53 18.7 90.53 18.92C90.53 19.12 90.58 19.28 90.69 19.4C90.81 19.51 90.98 19.6 91.2 19.69C91.44 19.77 91.72 19.87 92.05 19.98C92.72 20.17 93.29 20.37 93.75 20.57C94.22 20.77 94.57 21.03 94.8 21.32C95.04 21.61 95.16 22.01 95.16 22.52C95.16 23.35 94.86 24 94.25 24.47C93.64 24.94 92.83 25.18 91.8 25.18V25.16ZM99.7 25.16C98.99 25.16 98.3 25.04 97.65 24.81C97 24.57 96.44 24.23 95.97 23.77L96.74 22.38C97.24 22.78 97.73 23.08 98.21 23.28C98.7 23.47 99.17 23.57 99.62 23.57C100.04 23.57 100.37 23.5 100.62 23.35C100.87 23.2 101 22.98 101 22.68C101 22.48 100.93 22.32 100.79 22.22C100.65 22.1 100.45 22 100.18 21.92C99.92 21.83 99.61 21.74 99.23 21.63C98.61 21.43 98.09 21.23 97.68 21.04C97.26 20.85 96.95 20.61 96.73 20.32C96.53 20.02 96.43 19.64 96.43 19.18C96.43 18.63 96.57 18.15 96.84 17.76C97.13 17.35 97.52 17.04 98.02 16.81C98.53 16.59 99.13 16.47 99.81 16.47C100.41 16.47 100.97 16.57 101.51 16.76C102.04 16.94 102.53 17.24 102.97 17.66L102.11 19.02C101.68 18.69 101.27 18.45 100.89 18.3C100.5 18.14 100.11 18.06 99.72 18.06C99.49 18.06 99.28 18.09 99.08 18.14C98.89 18.19 98.73 18.28 98.6 18.41C98.49 18.53 98.43 18.7 98.43 18.92C98.43 19.12 98.48 19.28 98.59 19.4C98.71 19.51 98.88 19.6 99.1 19.69C99.34 19.77 99.62 19.87 99.95 19.98C100.62 20.17 101.19 20.37 101.65 20.57C102.12 20.77 102.47 21.03 102.7 21.32C102.94 21.61 103.06 22.01 103.06 22.52C103.06 23.35 102.76 24 102.15 24.47C101.54 24.94 100.73 25.18 99.7 25.18V25.16ZM108.4 25.16C107.72 25.16 107.1 25.05 106.56 24.82C106.02 24.59 105.55 24.27 105.17 23.86C104.79 23.45 104.5 22.99 104.31 22.47C104.1 21.95 104 21.4 104 20.82C104 20.23 104.1 19.68 104.3 19.16C104.51 18.64 104.8 18.17 105.17 17.77C105.56 17.36 106.02 17.05 106.56 16.82C107.11 16.59 107.72 16.47 108.4 16.47C109.08 16.47 109.69 16.59 110.22 16.82C110.77 17.04 111.23 17.36 111.62 17.76C112 18.17 112.29 18.63 112.48 19.15C112.69 19.67 112.78 20.23 112.78 20.81C112.78 21.39 112.68 21.94 112.48 22.46C112.29 22.98 112 23.45 111.62 23.85C111.24 24.27 110.78 24.59 110.24 24.82C109.7 25.05 109.08 25.16 108.4 25.16ZM106.21 20.82C106.21 21.31 106.31 21.75 106.51 22.13C106.7 22.5 106.97 22.8 107.3 23.01C107.63 23.22 108 23.33 108.42 23.33C108.83 23.33 109.2 23.22 109.52 23.01C109.85 22.79 110.11 22.49 110.3 22.11C110.51 21.73 110.61 21.29 110.61 20.8C110.61 20.32 110.51 19.89 110.31 19.5C110.11 19.12 109.85 18.82 109.52 18.6C109.19 18.39 108.82 18.28 108.42 18.28C108 18.28 107.63 18.39 107.31 18.62C106.98 18.83 106.72 19.13 106.53 19.51C106.33 19.88 106.23 20.31 106.23 20.81L106.21 20.82ZM122.02 25H119.88V20.3C119.88 19.63 119.76 19.14 119.52 18.82C119.29 18.51 118.96 18.36 118.54 18.36C118.25 18.36 117.96 18.43 117.66 18.58C117.37 18.73 117.11 18.94 116.88 19.21C116.64 19.47 116.47 19.77 116.36 20.11V25H114.22V16.62H116.16V18.17C116.37 17.81 116.65 17.5 116.98 17.26C117.31 17 117.69 16.81 118.12 16.68C118.56 16.54 119.02 16.47 119.5 16.47C120.02 16.47 120.45 16.57 120.78 16.76C121.12 16.94 121.38 17.19 121.55 17.51C121.73 17.82 121.85 18.17 121.92 18.57C121.99 18.96 122.03 19.36 122.03 19.77V25H122.02ZM126.97 25.16C126.26 25.16 125.57 25.04 124.92 24.81C124.27 24.57 123.71 24.23 123.24 23.77L124.01 22.38C124.51 22.78 125 23.08 125.48 23.28C125.97 23.47 126.44 23.57 126.89 23.57C127.31 23.57 127.64 23.5 127.89 23.35C128.14 23.2 128.27 22.98 128.27 22.68C128.27 22.48 128.2 22.32 128.06 22.22C127.92 22.1 127.72 22 127.45 21.92C127.19 21.83 126.88 21.74 126.5 21.63C125.88 21.43 125.36 21.23 124.95 21.04C124.53 20.85 124.22 20.61 124 20.32C123.8 20.02 123.7 19.64 123.7 19.18C123.7 18.63 123.84 18.15 124.11 17.76C124.4 17.35 124.79 17.04 125.29 16.81C125.8 16.59 126.4 16.47 127.08 16.47C127.68 16.47 128.24 16.57 128.78 16.76C129.31 16.94 129.8 17.24 130.24 17.66L129.38 19.02C128.95 18.69 128.54 18.45 128.16 18.3C127.77 18.14 127.38 18.06 126.99 18.06C126.76 18.06 126.55 18.09 126.35 18.14C126.16 18.19 126 18.28 125.87 18.41C125.76 18.53 125.7 18.7 125.7 18.92C125.7 19.12 125.75 19.28 125.86 19.4C125.98 19.51 126.15 19.6 126.37 19.69C126.61 19.77 126.89 19.87 127.22 19.98C127.89 20.17 128.46 20.37 128.92 20.57C129.39 20.77 129.74 21.03 129.97 21.32C130.21 21.61 130.33 22.01 130.33 22.52C130.33 23.35 130.03 24 129.42 24.47C128.81 24.94 128 25.18 126.97 25.18V25.16Z" fill="black"/><path opacity="0.1" d="M33.78 29.78C39.26 24.3 39.26 15.41 33.78 9.92C28.3 4.44 19.41 4.44 13.92 9.92C8.44 15.4 8.44 24.29 13.92 29.78C19.4 35.26 28.29 35.26 33.78 29.78Z" fill="#6B9FFF"/><path opacity="0.9" d="M31.3 27.3C35.41 23.19 35.41 16.52 31.3 12.41C27.19 8.30001 20.52 8.30001 16.41 12.41C12.3 16.52 12.3 23.19 16.41 27.3C20.52 31.41 27.19 31.41 31.3 27.3Z" fill="#6B9FFF"/><g opacity="0.85"><path d="M16.41 18.61C16.82 17.37 17.65 16.54 18.89 16.13C20.13 15.72 20.96 16.13 21.37 17.37C21.37 18.2 20.75 18.82 19.51 19.23C18.27 19.65 17.23 19.44 16.41 18.61Z" fill="#A8E6CF"/><path d="M22.61 14.89C23.44 14.06 24.47 13.86 25.71 14.27C26.54 15.1 26.74 16.13 26.33 17.37C25.09 17.79 24.26 17.37 23.85 16.13L22.61 14.89Z" fill="#A8E6CF"/><path d="M20.13 24.82C20.55 23.58 21.37 22.75 22.61 22.34C23.85 22.76 24.47 23.79 24.47 25.44C23.23 25.86 21.99 25.86 20.75 25.44L20.13 24.82Z" fill="#A8E6CF"/><path d="M26.34 21.1C26.75 19.86 27.79 19.24 29.44 19.24C30.68 19.65 31.1 20.48 30.68 21.72C29.44 22.13 28.2 22.13 26.96 21.72L26.34 21.1Z" fill="#A8E6CF"/></g><path opacity="0.3" d="M21.37 23.58C22.74 22.21 22.19 19.43 20.13 17.37C18.07 15.32 15.29 14.76 13.92 16.13C12.55 17.5 13.1 20.28 15.16 22.34C17.22 24.39 20 24.95 21.37 23.58Z" fill="white"/><path opacity="0.6" d="M33.91 17.5C34.32 17.09 34.32 16.42 33.91 16.01C33.5 15.6 32.83 15.6 32.42 16.01C32.01 16.42 32.01 17.09 32.42 17.5C32.83 17.91 33.5 17.91 33.91 17.5Z" fill="#FFE66D"/><path opacity="0.6" d="M22.61 31.02C22.95 30.68 22.95 30.12 22.61 29.78C22.27 29.44 21.71 29.44 21.37 29.78C21.03 30.12 21.03 30.68 21.37 31.02C21.71 31.36 22.27 31.36 22.61 31.02Z" fill="#FFB341"/><path opacity="0.5" d="M35.33 22.65C35.84 22.14 35.84 21.3 35.33 20.79C34.82 20.28 33.98 20.28 33.47 20.79C32.96 21.3 32.96 22.14 33.47 22.65C33.98 23.16 34.82 23.16 35.33 22.65Z" fill="#A8E6CF"/><path opacity="0.3" d="M32.54 28.54C37.34 23.74 37.34 15.97 32.54 11.17C27.74 6.37001 19.97 6.37001 15.17 11.17C10.37 15.97 10.37 23.74 15.17 28.54C19.97 33.34 27.74 33.34 32.54 28.54Z" stroke="#6B9FFF" stroke-dasharray="2 3"/><path d="M10.91 32.82C12.5171 32.82 13.82 31.5171 13.82 29.91C13.82 28.3029 12.5171 27 10.91 27C9.30285 27 8 28.3029 8 29.91C8 31.5171 9.30285 32.82 10.91 32.82Z" fill="white" stroke="#60A5FA" stroke-width="2"/><path d="M34.42 32.84C35.7565 32.84 36.84 31.7565 36.84 30.42C36.84 29.0835 35.7565 28 34.42 28C33.0835 28 32 29.0835 32 30.42C32 31.7565 33.0835 32.84 34.42 32.84Z" fill="white" stroke="#7760FA" stroke-width="2"/><path d="M31.42 7.84C32.7565 7.84 33.84 6.75653 33.84 5.42C33.84 4.08347 32.7565 3 31.42 3C30.0835 3 29 4.08347 29 5.42C29 6.75653 30.0835 7.84 31.42 7.84Z" fill="white" stroke="#2563EB" stroke-width="2"/></svg>
+  </div>
+  <div class="header-right">
+    <span class="timestamp" id="ts">—</span>
+    <button class="btn-run" id="btnRun" onclick="runAll()">Запуск</button>
+  </div>
+</div>
+
+<div id="statusBanner" style="display:none"></div>
+
+<div class="grid">
+
+  <!-- General -->
+  <div class="card card-full">
+    <div class="card-label">Общее</div>
+    <div class="info-row"><span class="info-val" id="cIP" style="max-width:100%">—</span></div>
+    <div class="info-row"><span class="info-val" id="cUserAgent" style="max-width:100%">—</span></div>
+    <div class="info-row"><span class="info-val ws-result" id="wsResult" style="max-width:100%">—</span></div>
+    <div id="srvList">
+      <div class="srv-row"><span class="dot" id="dotMsk"></span><span class="srv-name">turn-msk1</span><span class="srv-status" id="sMsk">—</span></div>
+      <div class="srv-row"><span class="dot" id="dotNsk"></span><span class="srv-name">my-lessons.ru</span><span class="srv-status" id="sNsk">—</span></div>
+      <div class="srv-row"><span class="dot" id="dotCf"></span><span class="srv-name">my-lessons.com</span><span class="srv-status" id="sCf">—</span></div>
+      <div class="srv-row"><span class="dot" id="dotExt"></span><span class="srv-name">google.com</span><span class="srv-status" id="sExt">—</span></div>
+      <div class="srv-row"><span class="dot" id="dotYa"></span><span class="srv-name">ya.ru</span><span class="srv-status" id="sYa">—</span></div>
+    </div>
+  </div>
+
+  <!-- Stability -->
+  <div class="card card-full">
+    <div class="card-label">3× my-lessons.ru</div>
+    <div id="stabList">
+      <div class="stab-row"><span>#1</span><div class="stab-bar-wrap"><div class="stab-bar" id="stabBar0" style="width:0;background:var(--border)"></div></div><span class="stab-time" id="stabT0">—</span></div>
+      <div class="stab-row"><span>#2</span><div class="stab-bar-wrap"><div class="stab-bar" id="stabBar1" style="width:0;background:var(--border)"></div></div><span class="stab-time" id="stabT1">—</span></div>
+      <div class="stab-row"><span>#3</span><div class="stab-bar-wrap"><div class="stab-bar" id="stabBar2" style="width:0;background:var(--border)"></div></div><span class="stab-time" id="stabT2">—</span></div>
+    </div>
+  </div>
+
+  <!-- SPA Resources -->
+  <div class="card card-full">
+    <div class="card-label">Ресурсы SPA</div>
+    <table class="res-table">
+      <thead><tr><th>Файл</th><th>Размер</th><th>Время</th><th>Статус</th></tr></thead>
+      <tbody id="resBody">
+        <tr><td>asset-manifest.json</td><td id="rManS">—</td><td id="rManT">—</td><td><span class="dot" id="rManD"></span></td></tr>
+        <tr><td>main.css</td><td id="rCssS">—</td><td id="rCssT">—</td><td><span class="dot" id="rCssD"></span></td></tr>
+        <tr><td>main.js</td><td id="rJsS">—</td><td id="rJsT">—</td><td><span class="dot" id="rJsD"></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Resource Timing -->
+  <div class="card card-full">
+    <div class="card-label">Resource Timing — my-lessons.ru</div>
+    <div id="timingContent">
+      <div class="timing-bar" id="timingBar"></div>
+      <div class="timing-legend">
+        <span class="tl-dns">DNS</span>
+        <span class="tl-tcp">TCP</span>
+        <span class="tl-tls">TLS</span>
+        <span class="tl-ttfb">TTFB</span>
+        <span class="tl-dl">Download</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;margin-top:4px;color:var(--muted)" id="timingNums">—</div>
+    </div>
+  </div>
+
+  <!-- ServiceWorker -->
+  <div class="card">
+    <div class="card-label">Service Worker</div>
+    <div class="sw-info" id="swInfo">—</div>
+  </div>
+
+  <!-- Storage -->
+  <div class="card">
+    <div class="card-label">Storage</div>
+    <div id="storageInfo">
+      <div class="storage-row"><span class="dot" id="stLsD"></span><span>localStorage</span></div>
+      <div class="storage-row"><span class="dot" id="stIdbD"></span><span>IndexedDB</span></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">test.my-lessons.ru — v1.0</div>
+
+<script>
+const TIMEOUT = 8000;
+
+function fmt(ms) { return ms < 0 ? '—' : ms < 1000 ? ms.toFixed(0) + 'ms' : (ms / 1000).toFixed(1) + 's'; }
+function fmtSize(b) { return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
+
+function setDot(id, status) {
+  const el = document.getElementById(id);
+  el.className = 'dot ' + status;
+}
+
+async function fetchTimed(url, opts = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url, { ...opts, signal: ctrl.signal, cache: 'no-store' });
+    const buf = await res.arrayBuffer();
+    const t1 = performance.now();
+    clearTimeout(timer);
+    return { ok: res.ok, status: res.status, ms: t1 - t0, size: buf.byteLength, headers: res.headers };
+  } catch (e) {
+    clearTimeout(timer);
+    return { ok: false, status: 0, ms: performance.now() - t0, size: 0, error: e.name === 'AbortError' ? 'timeout' : e.message };
+  }
+}
+
+function fillClientInfo() {
+  const userAgent = navigator.userAgent;
+  let short = userAgent;
+  const m = userAgent.match(/(iPhone|iPad|iPod).*?OS (\d+[_\.]\d+)/);
+  if (m) short = m[1] + ' iOS ' + m[2].replace('_', '.');
+  const sv = userAgent.match(/Version\/([\d.]+).*Safari/);
+  if (sv) short += ' Safari/' + sv[1];
+  if (!m && !sv) {
+    const ch = userAgent.match(/Chrome\/([\d.]+)/);
+    if (ch) short = 'Chrome/' + ch[1];
+  }
+  document.getElementById('cUserAgent').textContent = short;
+}
+
+async function checkIP() {
+  try {
+    const r = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+    const d = await r.json();
+    document.getElementById('cIP').textContent = d.ip;
+  } catch {
+    document.getElementById('cIP').textContent = 'н/д';
+  }
+}
+
+async function checkServer(url, dotId, statusId) {
+  setDot(dotId, 'loading');
+  const r = await fetchTimed(url);
+  if (r.ok) {
+    setDot(dotId, 'ok');
+    document.getElementById(statusId).textContent = r.status + ' · ' + fmt(r.ms);
+  } else {
+    setDot(dotId, 'fail');
+    document.getElementById(statusId).textContent = r.error || ('HTTP ' + r.status);
+    document.getElementById(statusId).style.color = 'var(--red)';
+  }
+}
+
+async function checkExternal(url, dotId, statusId) {
+  setDot(dotId, 'loading');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
+  const t0 = performance.now();
+  try {
+    await fetch(url, { mode: 'no-cors', signal: ctrl.signal, cache: 'no-store' });
+    const ms = performance.now() - t0;
+    clearTimeout(timer);
+    setDot(dotId, 'ok');
+    document.getElementById(statusId).textContent = 'ok · ' + fmt(ms);
+  } catch (e) {
+    clearTimeout(timer);
+    setDot(dotId, 'fail');
+    document.getElementById(statusId).textContent = e.name === 'AbortError' ? 'timeout' : 'fail';
+    document.getElementById(statusId).style.color = 'var(--red)';
+  }
+}
+
+async function checkStability() {
+  const MAX = 3000; // max bar width reference
+  for (let i = 0; i < 3; i++) {
+    const bar = document.getElementById('stabBar' + i);
+    const txt = document.getElementById('stabT' + i);
+    bar.style.width = '0';
+    bar.style.background = 'var(--blue)';
+    txt.textContent = '...';
+    const r = await fetchTimed('https://my-lessons.ru/?_dc=' + Date.now() + '_' + i);
+    if (r.ok) {
+      const pct = Math.min(100, (r.ms / MAX) * 100);
+      bar.style.width = pct + '%';
+      bar.style.background = r.ms < 500 ? 'var(--green)' : r.ms < 2000 ? 'var(--yellow)' : 'var(--red)';
+      txt.textContent = fmt(r.ms);
+    } else {
+      bar.style.width = '100%';
+      bar.style.background = 'var(--red)';
+      txt.textContent = r.error || 'fail';
+      txt.style.color = 'var(--red)';
+    }
+  }
+}
+
+async function checkResources() {
+  // manifest
+  setDot('rManD', 'loading');
+  const man = await fetchTimed('https://my-lessons.ru/asset-manifest.json');
+  if (man.ok) {
+    setDot('rManD', 'ok');
+    document.getElementById('rManS').textContent = fmtSize(man.size);
+    document.getElementById('rManT').textContent = fmt(man.ms);
+
+    try {
+      const decoder = new TextDecoder();
+      // re-fetch to parse JSON (we consumed arrayBuffer)
+      const manRes = await fetch('https://my-lessons.ru/asset-manifest.json', { cache: 'no-store' });
+      const manData = await manRes.json();
+      const files = manData.files || {};
+
+      // CSS
+      if (files['main.css']) {
+        setDot('rCssD', 'loading');
+        const css = await fetchTimed('https://my-lessons.ru' + files['main.css']);
+        setDot('rCssD', css.ok ? 'ok' : 'fail');
+        document.getElementById('rCssS').textContent = css.ok ? fmtSize(css.size) : '—';
+        document.getElementById('rCssT').textContent = css.ok ? fmt(css.ms) : (css.error || 'fail');
+      }
+
+      // JS
+      if (files['main.js']) {
+        setDot('rJsD', 'loading');
+        const js = await fetchTimed('https://my-lessons.ru' + files['main.js']);
+        setDot('rJsD', js.ok ? 'ok' : 'fail');
+        document.getElementById('rJsS').textContent = js.ok ? fmtSize(js.size) : '—';
+        document.getElementById('rJsT').textContent = js.ok ? fmt(js.ms) : (js.error || 'fail');
+      }
+    } catch (e) {
+      document.getElementById('rCssT').textContent = 'parse err';
+      setDot('rCssD', 'fail');
+    }
+  } else {
+    setDot('rManD', 'fail');
+    document.getElementById('rManT').textContent = man.error || 'fail';
+  }
+}
+
+function showResourceTiming() {
+  // find the first successful my-lessons.ru entry
+  const entries = performance.getEntriesByType('resource').filter(e => e.name.includes('my-lessons.ru'));
+  if (!entries.length) {
+    document.getElementById('timingNums').textContent = 'Нет данных Resource Timing';
+    return;
+  }
+  const e = entries[entries.length - 1];
+  const dns = e.domainLookupEnd - e.domainLookupStart;
+  const tcp = e.connectEnd - e.connectStart;
+  const tls = e.secureConnectionStart > 0 ? (e.connectEnd - e.secureConnectionStart) : 0;
+  const ttfb = e.responseStart - e.requestStart;
+  const dl = e.responseEnd - e.responseStart;
+  const total = e.responseEnd - e.startTime;
+
+  const parts = [
+    { cls: 't-dns', val: dns },
+    { cls: 't-tcp', val: tcp },
+    { cls: 't-tls', val: tls },
+    { cls: 't-ttfb', val: ttfb },
+    { cls: 't-dl', val: dl },
+  ];
+
+  const bar = document.getElementById('timingBar');
+  bar.innerHTML = '';
+  parts.forEach(p => {
+    if (p.val > 0 && total > 0) {
+      const span = document.createElement('span');
+      span.className = p.cls;
+      span.style.width = (p.val / total * 100) + '%';
+      bar.appendChild(span);
+    }
+  });
+
+  document.getElementById('timingNums').textContent =
+    'DNS ' + fmt(dns) + ' · TCP ' + fmt(tcp) + ' · TLS ' + fmt(tls) + ' · TTFB ' + fmt(ttfb) + ' · DL ' + fmt(dl) + ' · Total ' + fmt(total);
+}
+
+async function checkWS() {
+  const el = document.getElementById('wsResult');
+  el.textContent = 'Подключение...';
+  return new Promise(resolve => {
+    const t0 = performance.now();
+    let done = false;
+    const timer = setTimeout(() => {
+      if (!done) { done = true; el.innerHTML = '<span class="dot fail"></span> Timeout'; ws.close(); resolve(); }
+    }, TIMEOUT);
+
+    let ws;
+    try {
+      ws = new WebSocket('wss://ws.api.my-lessons.ru/');
+    } catch (e) {
+      clearTimeout(timer);
+      el.innerHTML = '<span class="dot fail"></span> ' + e.message;
+      resolve();
+      return;
+    }
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ id: '3', method: 'ping/ping', params: {} }));
+    };
+
+    ws.onmessage = (msg) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      const totalMs = performance.now() - t0;
+      try {
+        JSON.parse(msg.data);
+        el.innerHTML = '<span class="dot ok"></span> Pong за ' + fmt(totalMs);
+      } catch {
+        el.innerHTML = '<span class="dot warn"></span> Ответ за ' + fmt(totalMs) + ' (не JSON)';
+      }
+      ws.close();
+      resolve();
+    };
+
+    ws.onerror = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      el.innerHTML = '<span class="dot fail"></span> Ошибка подключения';
+      resolve();
+    };
+
+    ws.onclose = () => {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        el.innerHTML = '<span class="dot fail"></span> Соединение закрыто';
+        resolve();
+      }
+    };
+  });
+}
+
+async function checkSW() {
+  const el = document.getElementById('swInfo');
+  const lines = [];
+
+  // Check if SW API available
+  if (!('serviceWorker' in navigator)) {
+    el.innerHTML = '<span class="dot warn"></span> SW API недоступно';
+    return;
+  }
+
+  // Check the SW file
+  try {
+    const r = await fetchTimed('https://my-lessons.ru/service-worker.js');
+    if (r.ok) {
+      lines.push('<span class="dot ok"></span> SW файл: ' + fmtSize(r.size));
+      const cc = r.headers.get('cache-control') || '—';
+      lines.push('Cache-Control: <code>' + cc + '</code>');
+    } else {
+      lines.push('<span class="dot fail"></span> SW файл: ' + (r.error || r.status));
+    }
+  } catch (e) {
+    lines.push('<span class="dot fail"></span> SW файл: ошибка');
+  }
+
+  el.innerHTML = lines.join('<br>');
+}
+
+function checkStorage() {
+  // localStorage
+  try {
+    localStorage.setItem('__diag_test', '1');
+    const v = localStorage.getItem('__diag_test');
+    localStorage.removeItem('__diag_test');
+    setDot('stLsD', v === '1' ? 'ok' : 'warn');
+  } catch {
+    setDot('stLsD', 'fail');
+  }
+
+  // IndexedDB
+  try {
+    const req = indexedDB.open('__diag_test', 1);
+    req.onsuccess = () => { setDot('stIdbD', 'ok'); req.result.close(); indexedDB.deleteDatabase('__diag_test'); };
+    req.onerror = () => { setDot('stIdbD', 'fail'); };
+  } catch {
+    setDot('stIdbD', 'fail');
+  }
+}
+
+async function runAll() {
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
+  const banner = document.getElementById('statusBanner');
+  banner.style.display = '';
+  banner.style.color = 'var(--blue)';
+  banner.style.borderLeftColor = 'var(--blue)';
+  let countdown = 20;
+  banner.textContent = 'Идёт проверка... ' + countdown + 's';
+  function showDone() {
+    banner.textContent = 'Отправьте, пожалуйста, фото этой страницы';
+    banner.style.color = 'var(--green)';
+    banner.style.borderLeftColor = 'var(--green)';
+  }
+
+  const countdownInterval = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      clearInterval(countdownInterval);
+      showDone();
+    } else {
+      banner.textContent = 'Идёт проверка... ' + countdown + 's';
+    }
+  }, 1000);
+
+  // Reset styles
+  document.querySelectorAll('.srv-status, .stab-time').forEach(el => el.style.color = '');
+
+  document.getElementById('ts').textContent = new Date().toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  fillClientInfo();
+  checkStorage();
+
+  await Promise.all([
+    checkIP(),
+    checkExternal('https://turn-msk1.my-lessons.ru/', 'dotMsk', 'sMsk'),
+    checkServer('https://my-lessons.ru/', 'dotNsk', 'sNsk'),
+    checkServer('https://my-lessons.com/', 'dotCf', 'sCf'),
+    checkExternal('https://www.google.com/favicon.ico', 'dotExt', 'sExt'),
+    checkExternal('https://ya.ru/favicon.ico', 'dotYa', 'sYa'),
+  ]);
+
+  await checkStability();
+  await checkResources();
+  showResourceTiming();
+  await checkWS();
+  await checkSW();
+
+  clearInterval(countdownInterval);
+  showDone();
+
+  btn.disabled = false;
+  btn.textContent = 'Повтор';
+}
+
+// Auto-run
+window.addEventListener('load', () => setTimeout(runAll, 300));
+</script>
+
+</body>
+</html>

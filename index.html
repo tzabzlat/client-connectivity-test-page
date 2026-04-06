@@ -362,7 +362,8 @@
 <div class="footer">test.my-lessons.ru — v1.0.1</div>
 
 <script>
-const TIMEOUT = 20000;
+const TIMEOUT_PING = 10000;
+const TIMEOUT_RESOURCE = 20000;
 
 function fmt(ms) { return ms < 0 ? '—' : ms < 1000 ? ms.toFixed(0) + 'ms' : (ms / 1000).toFixed(1) + 's'; }
 function fmtSize(b) { return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
@@ -372,9 +373,9 @@ function setDot(id, status) {
   el.className = 'dot ' + status;
 }
 
-async function fetchTimed(url, opts = {}) {
+async function fetchTimed(url, opts = {}, timeout = TIMEOUT_PING) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
+  const timer = setTimeout(() => ctrl.abort(), timeout);
   const t0 = performance.now();
   try {
     const res = await fetch(url, { ...opts, signal: ctrl.signal, cache: 'no-store' });
@@ -428,7 +429,7 @@ async function checkServer(url, dotId, statusId) {
 async function checkExternal(url, dotId, statusId) {
   setDot(dotId, 'loading');
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_PING);
   const t0 = performance.now();
   try {
     await fetch(url, { mode: 'no-cors', signal: ctrl.signal, cache: 'no-store' });
@@ -470,7 +471,7 @@ async function checkStability() {
 async function checkResources() {
   // manifest
   setDot('rManD', 'loading');
-  const man = await fetchTimed('https://my-lessons.ru/asset-manifest.json');
+  const man = await fetchTimed('https://my-lessons.ru/asset-manifest.json', {}, TIMEOUT_RESOURCE);
   if (man.ok) {
     setDot('rManD', 'ok');
     document.getElementById('rManS').textContent = fmtSize(man.size);
@@ -486,7 +487,7 @@ async function checkResources() {
       // CSS
       if (files['main.css']) {
         setDot('rCssD', 'loading');
-        const css = await fetchTimed('https://my-lessons.ru' + files['main.css']);
+        const css = await fetchTimed('https://my-lessons.ru' + files['main.css'], {}, TIMEOUT_RESOURCE);
         setDot('rCssD', css.ok ? 'ok' : 'fail');
         document.getElementById('rCssS').textContent = css.ok ? fmtSize(css.size) : '—';
         document.getElementById('rCssT').textContent = css.ok ? fmt(css.ms) : (css.error || 'fail');
@@ -495,7 +496,7 @@ async function checkResources() {
       // JS
       if (files['main.js']) {
         setDot('rJsD', 'loading');
-        const js = await fetchTimed('https://my-lessons.ru' + files['main.js']);
+        const js = await fetchTimed('https://my-lessons.ru' + files['main.js'], {}, TIMEOUT_RESOURCE);
         setDot('rJsD', js.ok ? 'ok' : 'fail');
         document.getElementById('rJsS').textContent = js.ok ? fmtSize(js.size) : '—';
         document.getElementById('rJsT').textContent = js.ok ? fmt(js.ms) : (js.error || 'fail');
@@ -556,7 +557,7 @@ async function checkWS() {
     let done = false;
     const timer = setTimeout(() => {
       if (!done) { done = true; el.innerHTML = '<span class="dot fail"></span> Timeout'; ws.close(); resolve(); }
-    }, TIMEOUT);
+    }, TIMEOUT_PING);
 
     let ws;
     try {
@@ -618,7 +619,7 @@ async function checkSW() {
 
   // Check the SW file
   try {
-    const r = await fetchTimed('https://my-lessons.ru/service-worker.js');
+    const r = await fetchTimed('https://my-lessons.ru/service-worker.js', {}, TIMEOUT_RESOURCE);
     if (r.ok) {
       lines.push('<span class="dot ok"></span> SW файл: ' + fmtSize(r.size));
       const cc = r.headers.get('cache-control') || '—';
@@ -663,7 +664,7 @@ async function runAll() {
   banner.style.display = '';
   banner.style.color = 'var(--blue)';
   banner.style.borderLeftColor = 'var(--blue)';
-  let countdown = 20;
+  let countdown = 30;
   banner.textContent = 'Идёт проверка... ' + countdown + 's';
   function showDone() {
     banner.textContent = 'Отправьте, пожалуйста, фото этой страницы';
